@@ -6,6 +6,11 @@ import (
     "github.com/ukpabik/go-chat/pkg/server"
 )
 
+/*
+* To run test, use this command in main directory: 
+* go test -v ./pkg/client
+*/
+
 func TestListen(t *testing.T) {
 
     // Create and establish our server

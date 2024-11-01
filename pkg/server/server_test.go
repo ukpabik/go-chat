@@ -9,6 +9,12 @@ import (
   "strconv"
 )
 
+/*
+* To run test, use this command in main directory: 
+* go test -v ./pkg/server -args -maxConnections=?
+* for the ?, input whatever max you want to test
+*/
+
 var maxConnections int
 
 func TestMain(m *testing.M) {
