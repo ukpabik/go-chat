@@ -44,7 +44,7 @@ func Listen(client *Client) {
         log.Println("server DIED")
         break
       }
-      log.Printf("ERROR READING FROM SERVER")
+      log.Println("ERROR READING FROM SERVER")
       break
     }
     fmt.Println(string(buffer[:message]))
