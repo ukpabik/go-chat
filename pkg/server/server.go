@@ -7,11 +7,20 @@ import (
   "log"
   "fmt"
   "io"
+  "strings"
+
+
+  "github.com/fatih/color"
 )
+
+type Client struct {
+  Conn net.Conn
+  Name string
+}
 
 
 type NetServer struct {
-  Connections []net.Conn
+  Connections []Client
   Name string
   Reader io.Reader
   Writer io.Writer
@@ -24,45 +33,60 @@ func CreateServer(name string) *NetServer {
   }
 }
 
-// Starts our server
+// Starts our server and listens for incoming client connections
 func (s *NetServer) Start() error {
-  net, err := net.Listen("tcp", "localhost:8080")
+  listener, err := net.Listen("tcp", "localhost:8080")
   if err != nil{
     log.Printf("unable to start server: %v", err)
     return err
   }
-  defer net.Close()
+  defer listener.Close()
 
   for {
-    conn, err := net.Accept()
+    conn, err := listener.Accept()
     if err != nil {
       log.Printf("unable to accept connection: %v", err)
       continue
     }
 
-    s.Connections = append(s.Connections, conn)
-    fmt.Println("New connection added:", conn.RemoteAddr())
+    // Creating buffer for receiving the name
+    nameBuf := make([]byte, 1024)
+    n, err := conn.Read(nameBuf)
+    if err != nil {
+      log.Printf("Can't read client name: %v", err)
+      conn.Close()
+      continue
+    }
+
+    clientName := strings.TrimSpace(string(nameBuf[:n]))
+    client := Client {
+      Conn: conn,
+      Name: clientName,
+    }
+
+    s.Connections = append(s.Connections, client)
+    fmt.Printf("New connection added: %s --> %s\n", client.Name, conn.RemoteAddr())
     fmt.Printf("There are now %d users connected!\n", len(s.Connections))
 
 
     // TODO: Handle connection
-    go s.receiveMessage(conn)
+    go s.receiveMessage(client)
   }
 }
 
 
 // Loops and reads all messages from client
-func (s *NetServer) receiveMessage(conn net.Conn){
+func (s *NetServer) receiveMessage(client Client){
   defer func() {
-    conn.Close()
-    s.removeConnection(conn)
-    log.Println("Connection closed by client:", conn.RemoteAddr())
+    client.Conn.Close()
+    s.removeConnection(client)
+    log.Println("Connection closed by client:", client.Conn.RemoteAddr())
   }()
 
   for {
     // Make read buffer and read all bytes sent from the connection
     buff := make([]byte, 1024)
-    n, err := conn.Read(buff)
+    n, err := client.Conn.Read(buff)
 
     if err != nil {
       log.Println("Error reading bytes: ", err.Error())
@@ -70,24 +94,39 @@ func (s *NetServer) receiveMessage(conn net.Conn){
     }
 
     if n > 0 {
-      message := string(buff[:n])
-      log.Println("Received data:", message)
-      response := []byte("Server received message")
+      message := strings.TrimSpace(string(buff[:n]))
 
-      _, err = conn.Write(response)
-      if err != nil {
-        log.Println("Error writing to client:", err)
-        return
-      }
+      // Run the sendGlobal in a goroutine so it doesnt block any other actions
+      go s.sendGlobalMessage(client, message)
     }
   }
 }
 
-func (s *NetServer) removeConnection(conn net.Conn) {
+func (s *NetServer) removeConnection(client Client) {
   for i, activeConnection := range s.Connections {
-    if activeConnection == conn {
+    if activeConnection == client {
       s.Connections = append(s.Connections[:i], s.Connections[i+1:]...)
       break
     }
   }
+}
+
+func (s *NetServer) sendGlobalMessage(sender Client, message string) {
+  for _, conn := range s.Connections {
+    if conn == sender {
+      continue
+    }
+    convertedMessage := []byte(colorName(sender.Name) + ": " + message + "\n")
+    _, err := conn.Conn.Write(convertedMessage)
+    if err != nil {
+      log.Println("Error writing to client:", err)
+      return
+    }
+  }
+  fmt.Printf("Global message from %s: %s\n", colorName(sender.Name), message)
+}
+
+func colorName(name string) string{
+  blue := color.New(color.FgBlue).SprintFunc()
+  return fmt.Sprintf(blue("[%s]"), name)
 }
