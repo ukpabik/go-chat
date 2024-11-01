@@ -9,4 +9,4 @@ I’m looking to push this project further by learning and implementing:
 - **Database Integrations**: Storing user data, message history, and more.
 - **Enhanced Features**: Expanding message handling, error management, and scalability.
 
-This is an ongoing project where each enhancement will deepen my understanding of network protocols, security, and backend development in Go.
+This is an **ongoing** project where each added feature will strengthen my understanding of network protocols, security, and backend development in Go.
